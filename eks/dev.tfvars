@@ -38,7 +38,8 @@ addons = [
   },
   {
     name    = "coredns"
-    version = "v1.12.0-eksbuild.1"
+    version = "v1.11.4-eksbuild.2"
+    resolve_conflicts = "OVERWRITE"
   },
   {
     name    = "kube-proxy"
