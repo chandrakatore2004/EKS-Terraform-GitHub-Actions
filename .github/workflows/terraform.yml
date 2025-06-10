@@ -42,7 +42,8 @@ jobs:
 
   CheckOut-Repo:
     runs-on: qa
-    environment: production
+    environment: 
+       name: QA
 
     defaults:
       run:
