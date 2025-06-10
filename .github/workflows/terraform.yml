@@ -18,7 +18,7 @@ on:
         default: 'apply'
 
 env:
-      AWS_REGION: us-east-2
+      AWS_REGION: ap-south-1
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
@@ -29,10 +29,10 @@ jobs:
   
     # name: 'Terraform'
     # uses: actions/checkout@v4
-    # runs-on: ubuntu-latest
+    # runs-on: qa
     # environment: production
 
-    # Use the Bash shell regardless whether the GitHub Actions runner is ubuntu-latest, macos-latest, or windows-latest
+    # Use the Bash shell regardless whether the GitHub Actions runner is qa, macos-latest, or windows-latest
     # defaults:
     #   run:
     #     shell: bash
@@ -41,7 +41,7 @@ jobs:
         
 
   CheckOut-Repo:
-    runs-on: ubuntu-latest
+    runs-on: qa
     environment: production
 
     defaults:
@@ -63,7 +63,7 @@ jobs:
       uses: actions/checkout@v4
 
   Setting-Up-Terraform:
-    runs-on: ubuntu-latest
+    runs-on: qa
     
     needs: CheckOut-Repo
 
@@ -75,7 +75,7 @@ jobs:
         terraform_version: 1.9.3
 
   Terraform-Initializing:
-    runs-on: ubuntu-latest
+    runs-on: qa
 
     needs: Setting-Up-Terraform
 
@@ -95,7 +95,7 @@ jobs:
       run: terraform init
 
   Terraform-Formatting-Validating:
-    runs-on: ubuntu-latest
+    runs-on: qa
     needs: Terraform-Initializing
 
     steps:
@@ -122,7 +122,7 @@ jobs:
       run: terraform validate
 
   Terraform-Action:
-    runs-on: ubuntu-latest
+    runs-on: qa
     needs: Terraform-Formatting-Validating
     
     steps:
@@ -133,7 +133,7 @@ jobs:
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v1
       with:
-        terraform_version: 1.9.3
+        terraform_version: 1.12.1
 
     - name: Terraform Init
       working-directory: eks
