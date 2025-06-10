@@ -93,6 +93,10 @@ jobs:
     - name: Terraform Init
       working-directory: eks
       run: terraform init -reconfigure
+    
+    - name: Clean Terraform Cache
+      working-directory: eks
+      run: rm -rf .terraform terraform.tfstate*
 
   Terraform-Formatting-Validating:
     runs-on: qa
