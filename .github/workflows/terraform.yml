@@ -92,7 +92,7 @@ jobs:
     # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
     - name: Terraform Init
       working-directory: eks
-      run: terraform init -reconfigure
+      run: terraform init
     
     - name: Clean Terraform Cache
       working-directory: eks
@@ -114,7 +114,7 @@ jobs:
         
     - name: Terraform Init
       working-directory: eks
-      run: terraform init -reconfigure
+      run: terraform init
       
     # Checks that all Terraform configuration files adhere to a canonical format
     - name: Terraform Format
@@ -141,7 +141,7 @@ jobs:
 
     - name: Terraform Init
       working-directory: eks
-      run: terraform init -reconfigure 
+      run: terraform init 
 
       
     - name: Terraform Plan
