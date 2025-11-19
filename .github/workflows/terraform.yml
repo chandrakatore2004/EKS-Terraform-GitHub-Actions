@@ -113,10 +113,10 @@ jobs:
           rm -rf .terraform terraform.tfstate* || true
           terraform init -input=false
 
-      - name: Terraform Format
+      - name: Terraform Format Check (recursive)
         env:
           TERRAFORM_CLI_PATH: ""
-        run: terraform fmt -check
+        run: terraform fmt -check -recursive
 
       - name: Terraform Validate
         env:
