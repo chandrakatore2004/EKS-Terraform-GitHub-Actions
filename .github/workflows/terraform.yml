@@ -30,6 +30,13 @@ jobs:
     name: Terraform pipeline
     runs-on: qa
 
+    # Clear TERRAFORM_CLI_PATH in the job so a broken runner env won't be executed
+    env:
+      TERRAFORM_CLI_PATH: ""                     # <-- clear problematic value
+      AWS_REGION: ap-south-1
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
     defaults:
       run:
         shell: bash
@@ -51,7 +58,7 @@ jobs:
           terraform -v || echo "terraform -v failed"
           echo "----- TERRAFORM_CLI_PATH (before) -----"
           echo "$TERRAFORM_CLI_PATH"
-          # unset problematic var if set
+          # unset problematic var if set (extra safety)
           unset TERRAFORM_CLI_PATH || true
           echo "----- TERRAFORM_CLI_PATH (after unset) -----"
           echo "$TERRAFORM_CLI_PATH"
