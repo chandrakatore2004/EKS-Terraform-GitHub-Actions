@@ -1,4 +1,4 @@
-name: 'Terraform'
+name: Terraform
 
 on:
   workflow_dispatch:
@@ -9,156 +9,72 @@ on:
         default: 'dev.tfvars'
       action:
         type: choice
-        description: 'Apply or Destroy'
+        description: 'Plan / Apply / Destroy'
         options:
-        - plan
-        - apply
-        - destroy
+          - plan
+          - apply
+          - destroy
         required: true
         default: 'apply'
 
 env:
-      AWS_REGION: ap-south-1
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_REGION: ap-south-1
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
 permissions:
   contents: read
 
 jobs:
-  
-    # name: 'Terraform'
-    # uses: actions/checkout@v4
-    # runs-on: qa
-    # environment: production
-
-    # Use the Bash shell regardless whether the GitHub Actions runner is qa, macos-latest, or windows-latest
-    # defaults:
-    #   run:
-    #     shell: bash
-    #     working-directory: eks
-
-        
-
-  CheckOut-Repo:
-    runs-on: qa
-
-
+  terraform:
+    name: Terraform pipeline
+    runs-on: qa        # self-hosted runner label
     defaults:
       run:
         shell: bash
         working-directory: eks
 
-    env:
-      AWS_REGION: ap-south-1
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-    
-    
-    # needs: terraform
-    
     steps:
-    # Checkout the repository to the GitHub Actions runner
-    - name: Checkout
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-  Setting-Up-Terraform:
-    runs-on: qa
-    
-    needs: CheckOut-Repo
+      - name: Setup Terraform (install)
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.12.1
 
-    steps:
-    # Install the latest version of Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v1
-      with:
-        terraform_version: 1.12.1
+      - name: Debug: show terraform and env (safe)
+        run: |
+          echo "----- which terraform -----"
+          which terraform || echo "terraform not found"
+          terraform -v || echo "terraform -v failed"
+          echo "----- TERRAFORM_CLI_PATH (before) -----"
+          echo "$TERRAFORM_CLI_PATH"
+          # unset problematic var if set
+          unset TERRAFORM_CLI_PATH || true
+          echo "----- TERRAFORM_CLI_PATH (after unset) -----"
+          echo "$TERRAFORM_CLI_PATH"
 
-  Terraform-Initializing:
-    runs-on: qa
+      - name: Terraform Init (clean and init)
+        run: |
+          # ensure any leftover transient files removed
+          rm -rf .terraform terraform.tfstate* || true
+          terraform init -input=false
 
-    needs: Setting-Up-Terraform
+      - name: Terraform Format
+        run: terraform fmt -check
 
-    steps:
+      - name: Terraform Validate
+        run: terraform validate
 
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v1
-      with:
-        terraform_version: 1.12.1
-        
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      
-    # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
-    - name: Terraform Init
-      working-directory: eks
-      run: terraform init
-    
-    - name: Clean Terraform Cache
-      working-directory: eks
-      run: rm -rf .terraform terraform.tfstate*
+      - name: Terraform Plan
+        if: ${{ github.event.inputs.action == 'plan' }}
+        run: terraform plan -var-file="${{ github.event.inputs.tfvars_file }}" -input=false
 
-  Terraform-Formatting-Validating:
-    runs-on: qa
-    needs: Terraform-Initializing
+      - name: Terraform Apply
+        if: ${{ github.event.inputs.action == 'apply' }}
+        run: terraform apply -auto-approve -var-file="${{ github.event.inputs.tfvars_file }}" -input=false
 
-    steps:
-        
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v1
-      with:
-        terraform_version: 1.12.1
-        
-    - name: Terraform Init
-      working-directory: eks
-      run: terraform init
-      
-    # Checks that all Terraform configuration files adhere to a canonical format
-    - name: Terraform Format
-      working-directory: eks
-      run: terraform fmt
-
-    - name: Terraform Validate
-      working-directory: eks
-      run: terraform validate
-
-  Terraform-Action:
-    runs-on: qa
-    needs: Terraform-Formatting-Validating
-    
-    steps:
-
-    - name: Checkout repository
-      uses: actions/checkout@v4
-
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v1
-      with:
-        terraform_version: 1.12.1
-
-    - name: Terraform Init
-      working-directory: eks
-      run: terraform init 
-
-      
-    - name: Terraform Plan
-      if: ${{ github.event.inputs.action  == 'plan' }}
-      working-directory: eks
-      # Generates an execution plan for Terraform
-      run: |
-        terraform plan -var-file=${{ github.event.inputs.tfvars_file }} -input=false
-
-    
-      # Apply the Terraform Configuration according to the parameter
-    - name: Terraform Action
-      if: ${{ github.event.inputs.action  == 'apply' }}
-      working-directory: eks
-      run: terraform ${{ github.event.inputs.action }} -auto-approve -var-file=${{ github.event.inputs.tfvars_file }} -input=false
-
-    - name: Terraform Destroy
-      if: ${{ github.event.inputs.action == 'destroy' }}
-      working-directory: eks
-      run: terraform ${{ github.event.inputs.action }} -auto-approve -var-file=${{ github.event.inputs.tfvars_file }} -input=false
+      - name: Terraform Destroy
+        if: ${{ github.event.inputs.action == 'destroy' }}
+        run: terraform destroy -auto-approve -var-file="${{ github.event.inputs.tfvars_file }}" -input=false
