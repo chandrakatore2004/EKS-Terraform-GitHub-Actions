@@ -28,7 +28,8 @@ permissions:
 jobs:
   terraform:
     name: Terraform pipeline
-    runs-on: qa        # self-hosted runner label
+    runs-on: qa
+
     defaults:
       run:
         shell: bash
@@ -57,7 +58,6 @@ jobs:
 
       - name: Terraform Init (clean and init)
         run: |
-          # ensure any leftover transient files removed
           rm -rf .terraform terraform.tfstate* || true
           terraform init -input=false
 
