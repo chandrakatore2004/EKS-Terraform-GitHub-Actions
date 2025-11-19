@@ -44,7 +44,7 @@ jobs:
         with:
           terraform_version: 1.12.1
 
-      - name: Debug: show terraform and env (safe)
+      - name: "Debug: show terraform and env (safe)"
         run: |
           echo "----- which terraform -----"
           which terraform || echo "terraform not found"
