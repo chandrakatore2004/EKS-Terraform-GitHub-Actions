@@ -49,7 +49,7 @@ jobs:
           TERRAFORM_CLI_PATH: ""
         run: |
           set -euo pipefail
-          TF_VERSION="${TF_VERSION:-1.7.5}"  # change if you need a different version
+          TF_VERSION="${TF_VERSION:-1.12.1}"  # change if you need a different version
           ARCH="linux_amd64"
 
           echo "Detecting package manager..."
