@@ -40,16 +40,57 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        # also clear on the step level (extra safety)
         env:
           TERRAFORM_CLI_PATH: ""
 
-      - name: Setup Terraform (install)
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.12.1
+      - name: Install prerequisites and Terraform (runner)
+        # Installs node (if missing), curl, unzip, and Terraform binary
         env:
           TERRAFORM_CLI_PATH: ""
+        run: |
+          set -euo pipefail
+          TF_VERSION="${TF_VERSION:-1.7.5}"  # change if you need a different version
+          ARCH="linux_amd64"
+
+          echo "Detecting package manager..."
+          if command -v apt-get >/dev/null 2>&1; then
+            PM="apt"
+            sudo apt-get update -y
+            sudo apt-get install -y curl unzip gnupg ca-certificates
+            # install node if missing
+            if ! command -v node >/dev/null 2>&1; then
+              curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+              sudo apt-get install -y nodejs
+            fi
+          elif command -v yum >/dev/null 2>&1 || command -v dnf >/dev/null 2>&1; then
+            PM="yum"
+            sudo yum install -y curl unzip
+            if ! command -v node >/dev/null 2>&1; then
+              curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo bash -
+              sudo yum install -y nodejs
+            fi
+          elif command -v apk >/dev/null 2>&1; then
+            PM="apk"
+            sudo apk add --no-cache curl unzip nodejs npm
+          else
+            echo "Unsupported package manager. Please ensure curl/unzip/node are installed on the runner."
+          fi
+
+          echo "Installing Terraform ${TF_VERSION}..."
+          TMPDIR=$(mktemp -d)
+          trap 'rm -rf "$TMPDIR"' EXIT
+          TF_ARCHIVE="${TMPDIR}/terraform.zip"
+          TF_URL="https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_${ARCH}.zip"
+          echo "Downloading ${TF_URL} ..."
+          curl -fsSL "$TF_URL" -o "$TF_ARCHIVE"
+          unzip -q "$TF_ARCHIVE" -d "$TMPDIR"
+          sudo mv "$TMPDIR/terraform" /usr/local/bin/terraform
+          sudo chmod +x /usr/local/bin/terraform
+
+          echo "Verify installations:"
+          node -v || true
+          which terraform || true
+          terraform -v || true
 
       - name: "Debug: show terraform and env (safe)"
         env:
