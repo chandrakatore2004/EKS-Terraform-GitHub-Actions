@@ -38,13 +38,15 @@ jobs:
         working-directory: eks
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repository (with push creds)
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0                # full history (safer for pushing)
+          persist-credentials: true     # allow the workflow to push
         env:
           TERRAFORM_CLI_PATH: ""
 
       - name: Install prerequisites and Terraform (runner)
-        # Installs node (if missing), curl, unzip, and Terraform binary
         env:
           TERRAFORM_CLI_PATH: ""
         run: |
@@ -54,23 +56,19 @@ jobs:
 
           echo "Detecting package manager..."
           if command -v apt-get >/dev/null 2>&1; then
-            PM="apt"
             sudo apt-get update -y
             sudo apt-get install -y curl unzip gnupg ca-certificates
-            # install node if missing
             if ! command -v node >/dev/null 2>&1; then
               curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
               sudo apt-get install -y nodejs
             fi
           elif command -v yum >/dev/null 2>&1 || command -v dnf >/dev/null 2>&1; then
-            PM="yum"
             sudo yum install -y curl unzip
             if ! command -v node >/dev/null 2>&1; then
               curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo bash -
               sudo yum install -y nodejs
             fi
           elif command -v apk >/dev/null 2>&1; then
-            PM="apk"
             sudo apk add --no-cache curl unzip nodejs npm
           else
             echo "Unsupported package manager. Please ensure curl/unzip/node are installed on the runner."
@@ -81,7 +79,6 @@ jobs:
           trap 'rm -rf "$TMPDIR"' EXIT
           TF_ARCHIVE="${TMPDIR}/terraform.zip"
           TF_URL="https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_${ARCH}.zip"
-          echo "Downloading ${TF_URL} ..."
           curl -fsSL "$TF_URL" -o "$TF_ARCHIVE"
           unzip -q "$TF_ARCHIVE" -d "$TMPDIR"
           sudo mv "$TMPDIR/terraform" /usr/local/bin/terraform
@@ -101,7 +98,6 @@ jobs:
           terraform -v || echo "terraform -v failed"
           echo "----- TERRAFORM_CLI_PATH (before) -----"
           echo "$TERRAFORM_CLI_PATH"
-          # unset problematic var if set (extra safety)
           unset TERRAFORM_CLI_PATH || true
           echo "----- TERRAFORM_CLI_PATH (after unset) -----"
           echo "$TERRAFORM_CLI_PATH"
@@ -113,7 +109,30 @@ jobs:
           rm -rf .terraform terraform.tfstate* || true
           terraform init -input=false
 
-      - name: Terraform Format Check (recursive)
+      - name: Terraform Format (auto-fix & commit)
+        env:
+          TERRAFORM_CLI_PATH: ""
+        run: |
+          set -euo pipefail
+          # run formatter recursively
+          terraform fmt -recursive
+
+          # If there are changes, commit and push them back to the branch that triggered the workflow
+          if [[ -n "$(git status --porcelain)" ]]; then
+            echo "Formatting changed files. Preparing to commit..."
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -A
+            git commit -m "chore: format Terraform files (auto)"
+            # Compute branch name from GITHUB_REF (works for workflow_dispatch & branch workflows)
+            BRANCH="${GITHUB_REF#refs/heads/}"
+            echo "Pushing formatting commit to branch: ${BRANCH}"
+            git push origin HEAD:"${BRANCH}"
+          else
+            echo "No formatting changes."
+          fi
+
+      - name: Terraform Format Check (ensure clean)
         env:
           TERRAFORM_CLI_PATH: ""
         run: terraform fmt -check -recursive
