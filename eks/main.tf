@@ -1,14 +1,9 @@
-locals {
-  org = "medium"
-  env = var.env
-}
-
 module "eks" {
   source = "../module"
 
   env                     = var.env
   cluster_name            = "${local.env}-${local.org}-${var.cluster_name}"
-  cidr_block              = var.vpc_cidr_block
+  vpc_cidr_block          = var.vpc_cidr_block
   vpc_name                = "${local.env}-${local.org}-${var.vpc_name}"
   igw_name                = "${local.env}-${local.org}-${var.igw_name}"
 
