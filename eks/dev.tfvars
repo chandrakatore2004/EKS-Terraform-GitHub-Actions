@@ -35,7 +35,7 @@ endpoint_public_access  = false
 # ondemand_instance_types should be a list of instance types so AWS has options.
 # Start with a small family then fall back to larger families if needed.
 ondemand_instance_types = ["t3.medium"]
-ami_type       = "AL2023_x86_64_STANDARD"
+ami_type                = "AL2023_x86_64_STANDARD"
 
 # Spot types (diversified). Keep at least a few choices; remove spot entirely if you want max reliability.
 #spot_instance_types = ["t3.large", "m5.large", "c5.large"]
