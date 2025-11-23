@@ -1,3 +1,4 @@
+# eks/dev.tfvars (refactored)
 env        = "dev"
 aws_region = "ap-south-1"
 
@@ -30,7 +31,13 @@ cluster_name            = "movie-prod-cluster"
 endpoint_private_access = true
 endpoint_public_access  = false
 
-ondemand_instance_types = ["t3.medium"]
+# --- Important: diversified instance types to avoid capacity shortages in ap-south-1 ---
+# ondemand_instance_types should be a list of instance types so AWS has options.
+# Start with a small family then fall back to larger families if needed.
+ondemand_instance_types = ["t3.medium", "t3.large", "m5.large"]
+
+# Spot types (diversified). Keep at least a few choices; remove spot entirely if you want max reliability.
+spot_instance_types = ["t3.large", "m5.large", "c5.large"]
 
 desired_capacity_on_demand = 1
 min_capacity_on_demand     = 1
