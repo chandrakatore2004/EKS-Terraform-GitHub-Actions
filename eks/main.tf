@@ -1,3 +1,9 @@
+# main.tf — ensure locals are declared before use
+locals {
+  org = "medium"
+  env = var.env
+}
+
 module "eks" {
   source = "../module"
 
