@@ -30,7 +30,7 @@ permissions:
 jobs:
   terraform:
     name: Terraform pipeline
-    runs-on: qa
+    runs-on: self-hosted
 
     defaults:
       run:
