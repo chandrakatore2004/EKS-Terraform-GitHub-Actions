@@ -4,22 +4,21 @@ on:
   workflow_dispatch:
     inputs:
       tfvars_file:
-        description: 'Path to the .tfvars file'
+        description: "Path to the .tfvars file"
         required: true
-        default: 'dev.tfvars'
+        default: "dev.tfvars"
       action:
         type: choice
-        description: 'Plan / Apply / Destroy'
+        description: "Plan / Apply / Destroy"
         options:
           - plan
           - apply
           - destroy
         required: true
-        default: 'apply'
+        default: "apply"
 
-# Top-level override to ensure the broken value is not inherited
 env:
-  TERRAFORM_CLI_PATH: ""                # <<-- clear broken runner env here
+  TERRAFORM_CLI_PATH: ""        # Prevent Linux runner bug
   AWS_REGION: ap-south-1
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -29,7 +28,7 @@ permissions:
 
 jobs:
   terraform:
-    name: Terraform pipeline
+    name: Terraform Pipeline
     runs-on: self-hosted
 
     defaults:
@@ -38,124 +37,82 @@ jobs:
         working-directory: eks
 
     steps:
-      - name: Checkout repository (with push creds)
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0                # full history (safer for pushing)
-          persist-credentials: true     # allow the workflow to push
-        env:
-          TERRAFORM_CLI_PATH: ""
+          fetch-depth: 0
+          persist-credentials: true
 
-      - name: Install prerequisites and Terraform (runner)
-        env:
-          TERRAFORM_CLI_PATH: ""
+      - name: Install prerequisites & Terraform
         run: |
           set -euo pipefail
-          TF_VERSION="${TF_VERSION:-1.12.1}"  # change if you need a different version
+          TF_VERSION="1.12.1"
           ARCH="linux_amd64"
 
-          echo "Detecting package manager..."
           if command -v apt-get >/dev/null 2>&1; then
             sudo apt-get update -y
-            sudo apt-get install -y curl unzip gnupg ca-certificates
-            if ! command -v node >/dev/null 2>&1; then
-              curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-              sudo apt-get install -y nodejs
-            fi
-          elif command -v yum >/dev/null 2>&1 || command -v dnf >/dev/null 2>&1; then
+            sudo apt-get install -y curl unzip ca-certificates
+          elif command -v yum >/dev/null 2>&1; then
             sudo yum install -y curl unzip
-            if ! command -v node >/dev/null 2>&1; then
-              curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo bash -
-              sudo yum install -y nodejs
-            fi
-          elif command -v apk >/dev/null 2>&1; then
-            sudo apk add --no-cache curl unzip nodejs npm
-          else
-            echo "Unsupported package manager. Please ensure curl/unzip/node are installed on the runner."
           fi
 
-          echo "Installing Terraform ${TF_VERSION}..."
-          TMPDIR=$(mktemp -d)
-          trap 'rm -rf "$TMPDIR"' EXIT
-          TF_ARCHIVE="${TMPDIR}/terraform.zip"
-          TF_URL="https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_${ARCH}.zip"
-          curl -fsSL "$TF_URL" -o "$TF_ARCHIVE"
-          unzip -q "$TF_ARCHIVE" -d "$TMPDIR"
-          sudo mv "$TMPDIR/terraform" /usr/local/bin/terraform
+          TMP=$(mktemp -d)
+          curl -fsSL "https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_${ARCH}.zip" -o "$TMP/tf.zip"
+          unzip -q "$TMP/tf.zip" -d "$TMP"
+          sudo mv "$TMP/terraform" /usr/local/bin/terraform
           sudo chmod +x /usr/local/bin/terraform
+          rm -rf "$TMP"
 
-          echo "Verify installations:"
-          node -v || true
+      - name: Debug Terraform binary
+        run: |
           which terraform || true
           terraform -v || true
 
-      - name: "Debug: show terraform and env (safe)"
-        env:
-          TERRAFORM_CLI_PATH: ""
-        run: |
-          echo "----- which terraform -----"
-          which terraform || echo "terraform not found"
-          terraform -v || echo "terraform -v failed"
-          echo "----- TERRAFORM_CLI_PATH (before) -----"
-          echo "$TERRAFORM_CLI_PATH"
-          unset TERRAFORM_CLI_PATH || true
-          echo "----- TERRAFORM_CLI_PATH (after unset) -----"
-          echo "$TERRAFORM_CLI_PATH"
-
-      - name: Terraform Init (clean and init)
-        env:
-          TERRAFORM_CLI_PATH: ""
+      - name: Terraform Init (clean)
         run: |
           rm -rf .terraform terraform.tfstate* || true
           terraform init -input=false
 
-      - name: Terraform Format (auto-fix & commit)
-        env:
-          TERRAFORM_CLI_PATH: ""
+      - name: Terraform Format (safe & auto-commit)
         run: |
           set -euo pipefail
-          # run formatter recursively
+
+          # Run formatting
           terraform fmt -recursive
 
-          # If there are changes, commit and push them back to the branch that triggered the workflow
+          # Ensure .terraform and providers never get committed
+          echo "*.tfstate"           >> ../../.gitignore
+          echo "*.tfstate.backup"    >> ../../.gitignore
+          echo ".terraform/"         >> ../../.gitignore
+          echo ".terraform.lock.hcl" >> ../../.gitignore
+
+          git add -u
+          git add '*.tf' '*.tfvars' || true
+
           if [[ -n "$(git status --porcelain)" ]]; then
-            echo "Formatting changed files. Preparing to commit..."
+            echo "Formatting changed files. Committing..."
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add -A
             git commit -m "chore: format Terraform files (auto)"
-            # Compute branch name from GITHUB_REF (works for workflow_dispatch & branch workflows)
-            BRANCH="${GITHUB_REF#refs/heads/}"
-            echo "Pushing formatting commit to branch: ${BRANCH}"
-            git push origin HEAD:"${BRANCH}"
+            git push origin HEAD:"${GITHUB_REF#refs/heads/}"
           else
             echo "No formatting changes."
           fi
 
-      - name: Terraform Format Check (ensure clean)
-        env:
-          TERRAFORM_CLI_PATH: ""
+      - name: Terraform Format Check
         run: terraform fmt -check -recursive
 
       - name: Terraform Validate
-        env:
-          TERRAFORM_CLI_PATH: ""
         run: terraform validate
 
       - name: Terraform Plan
         if: ${{ github.event.inputs.action == 'plan' }}
-        env:
-          TERRAFORM_CLI_PATH: ""
         run: terraform plan -var-file="${{ github.event.inputs.tfvars_file }}" -input=false
 
       - name: Terraform Apply
         if: ${{ github.event.inputs.action == 'apply' }}
-        env:
-          TERRAFORM_CLI_PATH: ""
         run: terraform apply -auto-approve -var-file="${{ github.event.inputs.tfvars_file }}" -input=false
 
       - name: Terraform Destroy
         if: ${{ github.event.inputs.action == 'destroy' }}
-        env:
-          TERRAFORM_CLI_PATH: ""
         run: terraform destroy -auto-approve -var-file="${{ github.event.inputs.tfvars_file }}" -input=false
