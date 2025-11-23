@@ -1,5 +1,5 @@
 locals {
-  cluster_name = var.cluster-name
+  cluster_name = var.cluster_name
 }
 
 resource "random_integer" "random_suffix" {
@@ -7,7 +7,7 @@ resource "random_integer" "random_suffix" {
   max = 9999
 }
 
-resource "aws_iam_role" "eks-cluster-role" {
+resource "aws_iam_role" "eks_cluster_role" {
   count = var.is_eks_role_enabled ? 1 : 0
   name  = "${local.cluster_name}-role-${random_integer.random_suffix.result}"
 
@@ -23,13 +23,13 @@ resource "aws_iam_role" "eks-cluster-role" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "AmazonEKSClusterPolicy" {
+resource "aws_iam_role_policy_attachment" "amazon_eks_cluster_policy" {
   count      = var.is_eks_role_enabled ? 1 : 0
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
-  role       = aws_iam_role.eks-cluster-role[count.index].name
+  role       = aws_iam_role.eks_cluster_role[count.index].name
 }
 
-resource "aws_iam_role" "eks-nodegroup-role" {
+resource "aws_iam_role" "eks_nodegroup_role" {
   count = var.is_eks_nodegroup_role_enabled ? 1 : 0
   name  = "${local.cluster_name}-nodegroup-role-${random_integer.random_suffix.result}"
 
@@ -45,53 +45,53 @@ resource "aws_iam_role" "eks-nodegroup-role" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "eks-AmazonWorkerNodePolicy" {
+resource "aws_iam_role_policy_attachment" "amazon_worker_node_policy" {
   count      = var.is_eks_nodegroup_role_enabled ? 1 : 0
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
-  role       = aws_iam_role.eks-nodegroup-role[count.index].name
+  role       = aws_iam_role.eks_nodegroup_role[count.index].name
 }
 
-resource "aws_iam_role_policy_attachment" "eks-AmazonEKS_CNI_Policy" {
+resource "aws_iam_role_policy_attachment" "amazon_eks_cni_policy" {
   count      = var.is_eks_nodegroup_role_enabled ? 1 : 0
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
-  role       = aws_iam_role.eks-nodegroup-role[count.index].name
+  role       = aws_iam_role.eks_nodegroup_role[count.index].name
 }
-resource "aws_iam_role_policy_attachment" "eks-AmazonEC2ContainerRegistryReadOnly" {
+
+resource "aws_iam_role_policy_attachment" "amazon_ecr_readonly" {
   count      = var.is_eks_nodegroup_role_enabled ? 1 : 0
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-  role       = aws_iam_role.eks-nodegroup-role[count.index].name
+  role       = aws_iam_role.eks_nodegroup_role[count.index].name
 }
 
-resource "aws_iam_role_policy_attachment" "eks-AmazonEBSCSIDriverPolicy" {
+resource "aws_iam_role_policy_attachment" "amazon_ebs_csi_driver_policy" {
   count      = var.is_eks_nodegroup_role_enabled ? 1 : 0
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
-  role       = aws_iam_role.eks-nodegroup-role[count.index].name
+  role       = aws_iam_role.eks_nodegroup_role[count.index].name
 }
 
-# OIDC
-resource "aws_iam_role" "eks_oidc" {
+# OIDC support role (example)
+resource "aws_iam_role" "eks_oidc_role" {
   assume_role_policy = data.aws_iam_policy_document.eks_oidc_assume_role_policy.json
-  name               = "eks-oidc"
+  name               = "${local.cluster_name}-oidc-role"
 }
 
-resource "aws_iam_policy" "eks-oidc-policy" {
-  name = "test-policy"
+resource "aws_iam_policy" "eks_oidc_policy" {
+  name = "${local.cluster_name}-oidc-policy"
 
   policy = jsonencode({
+    Version = "2012-10-17"
     Statement = [{
       Action = [
         "s3:ListAllMyBuckets",
-        "s3:GetBucketLocation",
-        "*"
+        "s3:GetBucketLocation"
       ]
       Effect   = "Allow"
       Resource = "*"
     }]
-    Version = "2012-10-17"
   })
 }
 
-resource "aws_iam_role_policy_attachment" "eks-oidc-policy-attach" {
-  role       = aws_iam_role.eks_oidc.name
-  policy_arn = aws_iam_policy.eks-oidc-policy.arn
+resource "aws_iam_role_policy_attachment" "eks_oidc_policy_attach" {
+  role       = aws_iam_role.eks_oidc_role.name
+  policy_arn = aws_iam_policy.eks_oidc_policy.arn
 }
