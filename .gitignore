@@ -1,0 +1,36 @@
+########## TERRAFORM ##########
+# Local .terraform directories
+.terraform/
+**/.terraform/
+
+# Terraform state files
+*.tfstate
+*.tfstate.*
+terraform.tfstate
+terraform.tfstate.*
+
+# Crash log files
+crash.log
+
+# Ignore Terraform variable overrides
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Terraform lock file
+.terraform.lock.hcl
+
+########## TERRAFORM PLAN OUTPUTS ##########
+# Sensitive plan files
+*.plan
+
+########## EDITOR / OS ##########
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# VS Code
+.vscode/
