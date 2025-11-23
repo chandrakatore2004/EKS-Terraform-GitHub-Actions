@@ -1,5 +1,5 @@
 terraform {
-  required_version = "~> 1.12.1"   # ensure this matches your environment
+  required_version = "~> 1.12.1" # ensure this matches your environment
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -11,7 +11,7 @@ terraform {
     bucket       = "chandra-terraform-eks-state-bucket"
     region       = "ap-south-1"
     key          = "eks/terraform.tfstate"
-    use_lockfile = true     # <--- enable native S3 locking
+    use_lockfile = true # <--- enable native S3 locking
     encrypt      = true
   }
 }
