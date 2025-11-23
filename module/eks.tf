@@ -5,7 +5,7 @@ resource "aws_eks_cluster" "eks" {
   version  = var.cluster_version
 
   vpc_config {
-    subnet_ids              = [
+    subnet_ids = [
       aws_subnet.private_subnet[0].id,
       aws_subnet.private_subnet[1].id,
       aws_subnet.private_subnet[2].id
@@ -38,9 +38,9 @@ resource "aws_eks_addon" "eks_addons" {
   addon_name    = each.value.name
   addon_version = each.value.version
 
+  # Only depend on On-Demand nodegroup
   depends_on = [
-    aws_eks_node_group.ondemand_node,
-    aws_eks_node_group.spot_node
+    aws_eks_node_group.ondemand_node
   ]
 }
 
@@ -73,42 +73,7 @@ resource "aws_eks_node_group" "ondemand_node" {
     Name = "${var.cluster_name}-ondemand-nodes"
   }
 
-  depends_on = [aws_eks_cluster.eks]
-}
-
-resource "aws_eks_node_group" "spot_node" {
-  cluster_name    = aws_eks_cluster.eks[0].name
-  node_group_name = "${var.cluster_name}-spot-nodes"
-
-  node_role_arn = aws_iam_role.eks_nodegroup_role[0].arn
-
-  scaling_config {
-    desired_size = var.desired_capacity_spot
-    min_size     = var.min_capacity_spot
-    max_size     = var.max_capacity_spot
-  }
-
-  subnet_ids = [
-    aws_subnet.private_subnet[0].id,
-    aws_subnet.private_subnet[1].id,
-    aws_subnet.private_subnet[2].id
+  depends_on = [
+    aws_eks_cluster.eks
   ]
-
-  instance_types = var.spot_instance_types
-  capacity_type  = "SPOT"
-
-  update_config { max_unavailable = 1 }
-
-  labels = {
-    type      = "spot"
-    lifecycle = "spot"
-  }
-
-  disk_size = 50
-
-  tags = {
-    Name = "${var.cluster_name}-spot-nodes"
-  }
-
-  depends_on = [aws_eks_cluster.eks]
 }
