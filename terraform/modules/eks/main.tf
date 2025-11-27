@@ -44,9 +44,9 @@ resource "aws_eks_node_group" "default" {
     max_size     = 2
   }
 
-  instance_types = ["t3.medium"]
+  instance_types = ["t3.small","t3.large","m5.large"]
   capacity_type  = "ON_DEMAND"
-  ami_type       = "AL2023_x86_64_STANDARD"
+  #ami_type       = "AL2023_x86_64_STANDARD"
 
   update_config { max_unavailable = 1 }
 
