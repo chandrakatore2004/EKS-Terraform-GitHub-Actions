@@ -39,9 +39,9 @@ resource "aws_eks_node_group" "default" {
   version = var.eks_version
 
   scaling_config {
-    min_size     = 3
-    desired_size = 3
-    max_size     = 6
+    min_size     = 1
+    desired_size = 1
+    max_size     = 2
   }
 
   instance_types = ["t3.medium"]
