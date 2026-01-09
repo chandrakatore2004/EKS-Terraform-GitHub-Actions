@@ -13,5 +13,5 @@ key_name         = "us_virginia_keypair"
 allowed_ssh_cidr = "0.0.0.0/0"
 
 # --- EKS Variables ---
-cluster_name = "cyb-dev-cluster"
+cluster_name = "dev-bookmymovie-cluster"
 eks_version  = "1.34"
